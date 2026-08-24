@@ -26,6 +26,9 @@ public interface VisiterRepository extends JpaRepository<Visiter, VisiterId> {
     @Query("SELECT v FROM Visiter v JOIN FETCH v.medecin m JOIN FETCH v.patient p WHERE LOWER(p.nom) LIKE LOWER(CONCAT('%', :keyword, '%')) OR LOWER(p.prenom) LIKE LOWER(CONCAT('%', :keyword, '%'))")
     List<Visiter> findByPatientNomContaining(String keyword);
 
+    @Query("SELECT v FROM Visiter v JOIN FETCH v.medecin m JOIN FETCH v.patient p")
+    List<Visiter> findAllWithJoins();
+
     @Query(value = "SELECT COUNT(*) FROM visiter WHERE MONTH(date) = MONTH(CURDATE()) AND YEAR(date) = YEAR(CURDATE())", nativeQuery = true)
     long countCurrentMonth();
 }

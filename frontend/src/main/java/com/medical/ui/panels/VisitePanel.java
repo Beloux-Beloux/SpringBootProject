@@ -197,14 +197,24 @@ public class VisitePanel extends JPanel {
 
     private void editRow(int row) {
         Visite o = model.getAt(row);
-        int opt = JOptionPane.showConfirmDialog(this,
-            "Modifier la visite du " + o.date() + " (Médecin: " + o.medecinNom() + ") ?",
-            "Confirmer la modification", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
-        if (opt != JOptionPane.YES_OPTION) return;
 
         VisiteDialog d = new VisiteDialog(SwingUtilities.getWindowAncestor(this), o);
         d.setVisible(true);
         if (!d.isOk()) return;
+
+        StringBuilder changes = new StringBuilder();
+        if (!d.med().equals(o.codeMed())) changes.append("• Médecin : ").append(o.codeMed()).append(" → ").append(d.med()).append("\n");
+        if (!d.pat().equals(o.codePat())) changes.append("• Patient : ").append(o.codePat()).append(" → ").append(d.pat()).append("\n");
+        if (!d.date().equals(o.date())) changes.append("• Date : ").append(o.date()).append(" → ").append(d.date()).append("\n");
+
+        String msg = changes.length() > 0
+            ? "Confirmez-vous les modifications de la visite du " + o.date() + " ?\n\n" + changes.toString()
+            : "Aucune modification détectée. Enregistrer quand même ?";
+
+        int opt = JOptionPane.showConfirmDialog(this, msg,
+            "Confirmer la modification", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
+        if (opt != JOptionPane.YES_OPTION) return;
+
         run(() -> api.put("/api/visites/" + api.encode(o.codeMed()) + "/" + api.encode(o.codePat()) + "/" + o.date(),
             new Visite(d.med(), d.pat(), d.date(), "", ""), Visite.class));
     }

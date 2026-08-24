@@ -195,14 +195,26 @@ public class PatientPanel extends JPanel {
 
     private void editRow(int row) {
         Patient o = model.getAt(row);
-        int opt = JOptionPane.showConfirmDialog(this,
-            "Modifier le patient « " + o.codePat() + " — " + o.nom() + " " + o.prenom() + " » ?",
-            "Confirmer la modification", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
-        if (opt != JOptionPane.YES_OPTION) return;
 
         PatientDialog d = new PatientDialog(SwingUtilities.getWindowAncestor(this), o);
         d.setVisible(true);
         if (!d.isOk()) return;
+
+        StringBuilder changes = new StringBuilder();
+        if (!d.code().equals(o.codePat())) changes.append("• Code : ").append(o.codePat()).append(" → ").append(d.code()).append("\n");
+        if (!d.nom().equals(o.nom())) changes.append("• Nom : ").append(o.nom()).append(" → ").append(d.nom()).append("\n");
+        if (!d.prenom().equals(o.prenom())) changes.append("• Prénom : ").append(o.prenom()).append(" → ").append(d.prenom()).append("\n");
+        if (!d.sexe().equals(o.sexe())) changes.append("• Sexe : ").append(o.sexe()).append(" → ").append(d.sexe()).append("\n");
+        if (!d.adresse().equals(o.adresse())) changes.append("• Adresse : ").append(o.adresse()).append(" → ").append(d.adresse()).append("\n");
+
+        String msg = changes.length() > 0
+            ? "Confirmez-vous les modifications pour « " + o.codePat() + " — " + o.nom() + " " + o.prenom() + " » ?\n\n" + changes.toString()
+            : "Aucune modification détectée. Enregistrer quand même ?";
+
+        int opt = JOptionPane.showConfirmDialog(this, msg,
+            "Confirmer la modification", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
+        if (opt != JOptionPane.YES_OPTION) return;
+
         run(() -> api.put("/api/patients/" + api.encode(o.codePat()),
             new Patient(d.code(), d.nom(), d.prenom(), d.sexe(), d.adresse()), Patient.class));
     }

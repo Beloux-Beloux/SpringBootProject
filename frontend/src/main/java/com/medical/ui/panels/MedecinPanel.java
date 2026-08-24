@@ -196,15 +196,28 @@ public class MedecinPanel extends JPanel {
 
     private void editRow(int row) {
         Medecin o = model.getAt(row);
-        // Confirmation avant modification
-        int opt = JOptionPane.showConfirmDialog(this,
-            "Modifier le médecin « " + o.codeMed() + " — " + o.nom() + " " + o.prenom() + " » ?",
+
+        // 1. Ouvrir le dialogue de modification DIRECTEMENT (pas de confirmation préalable)
+        MedecinDialog d = new MedecinDialog(SwingUtilities.getWindowAncestor(this), o);
+        d.setVisible(true);
+        if (!d.isOk()) return; // L'utilisateur a cliqué "Annuler" → rien ne se passe
+
+        // 2. Confirmation APRÈS la modification (l'utilisateur voit ce qui va changer)
+        StringBuilder changes = new StringBuilder();
+        if (!d.code().equals(o.codeMed())) changes.append("• Code : ").append(o.codeMed()).append(" → ").append(d.code()).append("\n");
+        if (!d.nom().equals(o.nom())) changes.append("• Nom : ").append(o.nom()).append(" → ").append(d.nom()).append("\n");
+        if (!d.prenom().equals(o.prenom())) changes.append("• Prénom : ").append(o.prenom()).append(" → ").append(d.prenom()).append("\n");
+        if (!d.grade().equals(o.grade())) changes.append("• Grade : ").append(o.grade()).append(" → ").append(d.grade()).append("\n");
+
+        String msg = changes.length() > 0
+            ? "Confirmez-vous les modifications suivantes pour « " + o.codeMed() + " — " + o.nom() + " " + o.prenom() + " » ?\n\n" + changes.toString()
+            : "Aucune modification détectée. Voulez-vous tout de même enregistrer ?";
+
+        int opt = JOptionPane.showConfirmDialog(this, msg,
             "Confirmer la modification", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
         if (opt != JOptionPane.YES_OPTION) return;
 
-        MedecinDialog d = new MedecinDialog(SwingUtilities.getWindowAncestor(this), o);
-        d.setVisible(true);
-        if (!d.isOk()) return;
+        // 3. Envoyer la requête API
         run(() -> api.put("/api/medecins/" + api.encode(o.codeMed()),
             new Medecin(d.code(), d.nom(), d.prenom(), d.grade()), Medecin.class));
     }
