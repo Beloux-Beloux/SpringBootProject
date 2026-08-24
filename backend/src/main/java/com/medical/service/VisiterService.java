@@ -7,9 +7,11 @@ import com.medical.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import java.util.List;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true) 
 public class VisiterService {
     private final VisiterRepository repository;
     private final MedecinRepository medecinRepository;

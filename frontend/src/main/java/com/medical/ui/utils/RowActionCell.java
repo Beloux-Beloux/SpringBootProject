@@ -1,7 +1,6 @@
 package com.medical.ui.utils;
 
 import javax.swing.*;
-import javax.swing.border.EmptyBorder;
 import javax.swing.table.TableCellEditor;
 import javax.swing.table.TableCellRenderer;
 import java.awt.*;
@@ -40,36 +39,24 @@ public final class RowActionCell {
     }
 
     private static JButton createButton(String text, boolean danger) {
-
         JButton button = new JButton(text);
-
         button.setFocusable(false);
         button.setOpaque(true);
         button.setBorderPainted(false);
         button.setContentAreaFilled(true);
-
-        button.setFont(
-                button.getFont().deriveFont(Font.BOLD, 12f)
-        );
-
-        button.setMargin(
-                new Insets(5, 10, 5, 10)
-        );
-
-        button.setCursor(
-                Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
-        );
+        button.setFont(button.getFont().deriveFont(Font.BOLD, 12f));
+        button.setMargin(new Insets(6, 14, 6, 14));
+        button.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
         if (danger) {
-            button.setBackground(new Color(254, 226, 226));
-            button.setForeground(new Color(185, 28, 28));
+                button.setBackground(new Color(254, 226, 226));
+                button.setForeground(new Color(185, 28, 28));
         } else {
-            button.setBackground(new Color(243, 244, 246));
-            button.setForeground(new Color(55, 65, 81));
+                button.setBackground(UiStyle.PRIMARY);
+                button.setForeground(Color.WHITE);
         }
-
         return button;
-    }
+        }
 
     private static JPanel createPanel() {
 
