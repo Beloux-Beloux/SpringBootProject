@@ -18,6 +18,11 @@ public class VisiterController {
 
     @GetMapping public List<VisiterResponse> all() { return service.findAll(); }
 
+    @GetMapping("/search")
+    public List<VisiterResponse> search(@RequestParam String type, @RequestParam String value) {
+        return service.search(type, value);
+    }
+
     @GetMapping("/{codemed}/{codepat}/{date}")
     public VisiterResponse one(@PathVariable String codemed, @PathVariable String codepat,
                                @PathVariable LocalDate date) {
@@ -40,4 +45,8 @@ public class VisiterController {
         service.delete(new VisiterId(codemed, codepat, date));
         return ResponseEntity.noContent().build();
     }
+
+    // ── Stats ──
+    @GetMapping("/count") public long count() { return service.count(); }
+    @GetMapping("/count/current-month") public long countCurrentMonth() { return service.countCurrentMonth(); }
 }

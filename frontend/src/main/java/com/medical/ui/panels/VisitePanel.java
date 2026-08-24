@@ -15,6 +15,13 @@ public class VisitePanel extends JPanel {
     private final JTable table = new JTable(model);
     private final JLabel status;
     private final JTextField searchField = new JTextField();
+    private final JComboBox<String> searchType = new JComboBox<>(new String[]{
+        "CodeMédecin", "CodePatient", "Date", "NomMédecin", "NomPatient"
+    });
+    private final JLabel visCount = new JLabel("...");
+    private final JLabel medCount = new JLabel("...");
+    private final JLabel patCount = new JLabel("...");
+    private final JLabel monthCount = new JLabel("...");
 
     public VisitePanel(ApiClient a, JLabel s) {
         api = a;
@@ -33,6 +40,7 @@ public class VisitePanel extends JPanel {
         scroll.getViewport().setBackground(Color.WHITE);
         add(UiStyle.card(scroll), BorderLayout.CENTER);
 
+        loadStats();
         refresh();
     }
 
@@ -41,15 +49,16 @@ public class VisitePanel extends JPanel {
         top.setOpaque(false);
         top.setLayout(new BoxLayout(top, BoxLayout.Y_AXIS));
 
-        // Stats
+        // Stats cards
         JPanel cards = new JPanel(new GridLayout(1, 4, 16, 0));
         cards.setOpaque(false);
         cards.setBorder(new EmptyBorder(0, 0, 24, 0));
-        cards.add(UiStyle.statsCard("Visites", "8", UiStyle.SUCCESS));
-        cards.add(UiStyle.statsCard("Médecins", "12", UiStyle.PRIMARY));
-        cards.add(UiStyle.statsCard("Patients", "24", new Color(139, 92, 246)));
-        cards.add(UiStyle.statsCard("Ce mois", "3", UiStyle.WARNING));
+        cards.add(createStatCard("Visites", visCount, UiStyle.SUCCESS));
+        cards.add(createStatCard("Médecins", medCount, UiStyle.PRIMARY));
+        cards.add(createStatCard("Patients", patCount, new Color(139, 92, 246)));
+        cards.add(createStatCard("Ce mois", monthCount, UiStyle.WARNING));
 
+        // Title + buttons
         JPanel titleRow = new JPanel(new BorderLayout(16, 0));
         titleRow.setOpaque(false);
 
@@ -58,23 +67,23 @@ public class VisitePanel extends JPanel {
         titlePanel.setLayout(new BoxLayout(titlePanel, BoxLayout.Y_AXIS));
         titlePanel.add(UiStyle.title("Visites"));
         titlePanel.add(Box.createVerticalStrut(2));
-        titlePanel.add(UiStyle.muted("Gérer les visites médicales entre médecins et patients"));
+        titlePanel.add(UiStyle.muted("Gérer les visites médicales"));
 
         JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
         actions.setOpaque(false);
-        JButton addBtn = new JButton("＋ Ajouter une visite");
+        JButton addBtn = new JButton("＋ Ajouter");
         JButton refreshBtn = new JButton("↻ Actualiser");
         UiStyle.primaryButton(addBtn);
         UiStyle.secondaryButton(refreshBtn);
         addBtn.addActionListener(e -> add());
-        refreshBtn.addActionListener(e -> refresh());
+        refreshBtn.addActionListener(e -> { refresh(); loadStats(); });
         actions.add(addBtn);
         actions.add(refreshBtn);
 
         titleRow.add(titlePanel, BorderLayout.WEST);
         titleRow.add(actions, BorderLayout.EAST);
 
-        // Search
+        // Search bar
         JPanel searchRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
         searchRow.setOpaque(false);
         searchRow.setBorder(new EmptyBorder(16, 0, 16, 0));
@@ -83,7 +92,8 @@ public class VisitePanel extends JPanel {
         searchLabel.setFont(searchLabel.getFont().deriveFont(14f));
 
         UiStyle.searchField(searchField);
-        searchField.putClientProperty("JTextField.placeholderText", "Rechercher par médecin ou patient...");
+        searchField.putClientProperty("JTextField.placeholderText", "Rechercher une visite...");
+        UiStyle.comboBox(searchType);
 
         JButton searchBtn = new JButton("Rechercher");
         UiStyle.secondaryButton(searchBtn);
@@ -94,13 +104,13 @@ public class VisitePanel extends JPanel {
         clearBtn.setBorder(new EmptyBorder(8, 12, 8, 12));
         clearBtn.setContentAreaFilled(false);
         clearBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        clearBtn.addActionListener(e -> {
-            searchField.setText("");
-            refresh();
-        });
+        clearBtn.addActionListener(e -> { searchField.setText(""); refresh(); });
 
         searchRow.add(searchLabel);
         searchRow.add(searchField);
+        searchRow.add(Box.createHorizontalStrut(8));
+        searchRow.add(new JLabel("Filtre :"));
+        searchRow.add(searchType);
         searchRow.add(Box.createHorizontalStrut(8));
         searchRow.add(searchBtn);
         searchRow.add(clearBtn);
@@ -111,10 +121,62 @@ public class VisitePanel extends JPanel {
         return top;
     }
 
-    private void refresh() {
+    private JPanel createStatCard(String label, JLabel valueLabel, Color accent) {
+        JPanel p = new JPanel(new BorderLayout(8, 4));
+        p.setBackground(UiStyle.CARD_BG);
+        p.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(UiStyle.BORDER, 1),
+            new EmptyBorder(16, 20, 16, 20)
+        ));
+        valueLabel.setFont(valueLabel.getFont().deriveFont(Font.BOLD, 28f));
+        valueLabel.setForeground(accent);
+        JLabel lbl = new JLabel(label);
+        lbl.setForeground(UiStyle.TEXT_SECONDARY);
+        lbl.setFont(lbl.getFont().deriveFont(13f));
+        p.add(valueLabel, BorderLayout.NORTH);
+        p.add(lbl, BorderLayout.SOUTH);
+        return p;
+    }
+
+    private void loadStats() {
+        new SwingWorker<Void, Void>() {
+            long vis, med, pat, month;
+            protected Void doInBackground() throws Exception {
+                vis   = api.get("/api/visites/count", Long.class);
+                med   = api.get("/api/medecins/count", Long.class);
+                pat   = api.get("/api/patients/count", Long.class);
+                month = api.get("/api/visites/count/current-month", Long.class);
+                return null;
+            }
+            protected void done() {
+                visCount.setText(String.valueOf(vis));
+                medCount.setText(String.valueOf(med));
+                patCount.setText(String.valueOf(pat));
+                monthCount.setText(String.valueOf(month));
+            }
+        }.execute();
+    }
+
+    private void refresh() { load("/api/visites"); }
+
+    private void search() {
+        String q = searchField.getText().trim();
+        if (q.isBlank()) { refresh(); return; }
+        String type = switch (searchType.getSelectedItem().toString()) {
+            case "CodeMédecin" -> "codemedecin";
+            case "CodePatient" -> "codepatient";
+            case "Date"        -> "date";
+            case "NomMédecin"  -> "nommedecin";
+            case "NomPatient"  -> "nompatient";
+            default            -> "codemedecin";
+        };
+        load("/api/visites/search?type=" + type + "&value=" + api.encode(q));
+    }
+
+    private void load(String path) {
         new SwingWorker<Visite[], Void>() {
             protected Visite[] doInBackground() throws Exception {
-                return api.get("/api/visites", Visite[].class);
+                return api.get(path, Visite[].class);
             }
             protected void done() {
                 try {
@@ -123,11 +185,6 @@ public class VisitePanel extends JPanel {
                 } catch (Exception e) { error(e); }
             }
         }.execute();
-    }
-
-    private void search() {
-        // Client-side filtering could be implemented; for now just refresh
-        refresh();
     }
 
     private void add() {
@@ -140,10 +197,14 @@ public class VisitePanel extends JPanel {
 
     private void editRow(int row) {
         Visite o = model.getAt(row);
+        int opt = JOptionPane.showConfirmDialog(this,
+            "Modifier la visite du " + o.date() + " (Médecin: " + o.medecinNom() + ") ?",
+            "Confirmer la modification", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
+        if (opt != JOptionPane.YES_OPTION) return;
+
         VisiteDialog d = new VisiteDialog(SwingUtilities.getWindowAncestor(this), o);
         d.setVisible(true);
         if (!d.isOk()) return;
-        // PUT logic here preserved from original
         run(() -> api.put("/api/visites/" + api.encode(o.codeMed()) + "/" + api.encode(o.codePat()) + "/" + o.date(),
             new Visite(d.med(), d.pat(), d.date(), "", ""), Visite.class));
     }
@@ -151,8 +212,8 @@ public class VisitePanel extends JPanel {
     private void deleteRow(int row) {
         Visite x = model.getAt(row);
         int opt = JOptionPane.showConfirmDialog(this,
-            "Supprimer la visite du " + x.date() + " ?",
-            "Confirmation", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+            "Supprimer la visite du " + x.date() + " (" + x.medecinNom() + " → " + x.patientNom() + ") ?",
+            "Confirmer la suppression", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
         if (opt != JOptionPane.YES_OPTION) return;
         new SwingWorker<Void, Void>() {
             protected Void doInBackground() throws Exception {
@@ -160,7 +221,7 @@ public class VisitePanel extends JPanel {
                 return null;
             }
             protected void done() {
-                try { get(); refresh(); status.setText(" ✓ Visite supprimée"); }
+                try { get(); refresh(); loadStats(); status.setText(" ✓ Visite supprimée"); }
                 catch (Exception e) { error(e); }
             }
         }.execute();
@@ -171,7 +232,7 @@ public class VisitePanel extends JPanel {
         new SwingWorker<Object, Void>() {
             protected Object doInBackground() throws Exception { return t.run(); }
             protected void done() {
-                try { get(); refresh(); status.setText(" ✓ Opération réussie"); }
+                try { get(); refresh(); loadStats(); status.setText(" ✓ Opération réussie"); }
                 catch (Exception e) { error(e); }
             }
         }.execute();

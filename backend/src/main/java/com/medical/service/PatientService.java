@@ -18,12 +18,16 @@ public class PatientService {
 
     public List<Patient> search(String type, String value) {
         if (value == null || value.isBlank()) return findAll();
-        if ("code".equalsIgnoreCase(type)) {
-            return repository.findById(value.trim()).map(List::of).orElse(List.of());
-        }
-        if ("nom".equalsIgnoreCase(type))
-            return repository.findByNomContainingIgnoreCaseOrderByNomAscPrenomAsc(value.trim());
-        throw new BusinessException("Type de recherche invalide. Utilisez code ou nom.");
+        String v = value.trim();
+        return switch (type.toLowerCase()) {
+            case "tous"    -> repository.searchAllContaining(v);
+            case "code"    -> repository.findById(v).map(List::of).orElse(List.of());
+            case "nom"     -> repository.findByNomContainingIgnoreCaseOrderByNomAscPrenomAsc(v);
+            case "prenom"  -> repository.findByPrenomContainingIgnoreCaseOrderByNomAscPrenomAsc(v);
+            case "sexe"    -> repository.findBySexeContainingIgnoreCaseOrderByNomAscPrenomAsc(v);
+            case "adresse" -> repository.findByAdresseContainingIgnoreCaseOrderByNomAscPrenomAsc(v);
+            default        -> throw new BusinessException("Type de recherche invalide: " + type);
+        };
     }
 
     public Patient findById(String id) {
@@ -53,4 +57,8 @@ public class PatientService {
             throw new BusinessException("Suppression bloquée: ce patient possède des visites.");
         repository.deleteById(id);
     }
+
+    // ── Stats ──
+    public long count() { return repository.count(); }
+    public long countBySexe(String sexe) { return repository.countBySexe(sexe); }
 }

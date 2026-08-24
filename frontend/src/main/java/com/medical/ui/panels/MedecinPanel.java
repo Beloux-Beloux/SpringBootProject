@@ -15,7 +15,11 @@ public class MedecinPanel extends JPanel {
     private final JTable table = new JTable(model);
     private final JLabel status;
     private final JTextField searchField = new JTextField();
-    private final JComboBox<String> gradeFilter = new JComboBox<>(new String[]{"Tous", "Professeur", "Médecin", "Chirurgien", "Généraliste"});
+    private final JComboBox<String> searchType = new JComboBox<>(new String[]{"Tous", "Nom", "Prénom", "Grade"});
+    private final JLabel medCount = new JLabel("...");
+    private final JLabel visCount = new JLabel("...");
+    private final JLabel gradesCount = new JLabel("...");
+    private final JLabel actifsCount = new JLabel("...");
 
     public MedecinPanel(ApiClient a, JLabel s) {
         api = a;
@@ -24,10 +28,8 @@ public class MedecinPanel extends JPanel {
         setBackground(UiStyle.SURFACE);
         setBorder(new EmptyBorder(24, 28, 24, 28));
 
-        // Top content
         add(topSection(), BorderLayout.NORTH);
 
-        // Table card
         UiStyle.table(table);
         table.setAutoCreateRowSorter(true);
         RowActionCell.install(table, 4, this::editRow, this::deleteRow);
@@ -36,6 +38,7 @@ public class MedecinPanel extends JPanel {
         scroll.getViewport().setBackground(Color.WHITE);
         add(UiStyle.card(scroll), BorderLayout.CENTER);
 
+        loadStats();
         refresh();
     }
 
@@ -44,16 +47,16 @@ public class MedecinPanel extends JPanel {
         top.setOpaque(false);
         top.setLayout(new BoxLayout(top, BoxLayout.Y_AXIS));
 
-        // Stats cards
+        // Stats cards dynamiques
         JPanel cards = new JPanel(new GridLayout(1, 4, 16, 0));
         cards.setOpaque(false);
         cards.setBorder(new EmptyBorder(0, 0, 24, 0));
-        cards.add(UiStyle.statsCard("Médecins", "12", UiStyle.PRIMARY));
-        cards.add(UiStyle.statsCard("Visites", "8", UiStyle.SUCCESS));
-        cards.add(UiStyle.statsCard("Grades", "4", UiStyle.WARNING));
-        cards.add(UiStyle.statsCard("Actifs", "10", new Color(139, 92, 246)));
+        cards.add(createStatCard("Médecins", medCount, UiStyle.PRIMARY));
+        cards.add(createStatCard("Visites", visCount, UiStyle.SUCCESS));
+        cards.add(createStatCard("Grades", gradesCount, UiStyle.WARNING));
+        cards.add(createStatCard("Actifs", actifsCount, new Color(139, 92, 246)));
 
-        // Title + actions
+        // Title + buttons
         JPanel titleRow = new JPanel(new BorderLayout(16, 0));
         titleRow.setOpaque(false);
 
@@ -62,16 +65,16 @@ public class MedecinPanel extends JPanel {
         titlePanel.setLayout(new BoxLayout(titlePanel, BoxLayout.Y_AXIS));
         titlePanel.add(UiStyle.title("Médecins"));
         titlePanel.add(Box.createVerticalStrut(2));
-        titlePanel.add(UiStyle.muted("Gérer les médecins et leurs informations"));
+        titlePanel.add(UiStyle.muted("Gérer les médecins du centre médical"));
 
         JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
         actions.setOpaque(false);
-        JButton addBtn = new JButton("＋ Ajouter un médecin");
+        JButton addBtn = new JButton("＋ Ajouter");
         JButton refreshBtn = new JButton("↻ Actualiser");
         UiStyle.primaryButton(addBtn);
         UiStyle.secondaryButton(refreshBtn);
         addBtn.addActionListener(e -> add());
-        refreshBtn.addActionListener(e -> refresh());
+        refreshBtn.addActionListener(e -> { refresh(); loadStats(); });
         actions.add(addBtn);
         actions.add(refreshBtn);
 
@@ -88,8 +91,7 @@ public class MedecinPanel extends JPanel {
 
         UiStyle.searchField(searchField);
         searchField.putClientProperty("JTextField.placeholderText", "Rechercher un médecin...");
-
-        UiStyle.comboBox(gradeFilter);
+        UiStyle.comboBox(searchType);
 
         JButton searchBtn = new JButton("Rechercher");
         UiStyle.secondaryButton(searchBtn);
@@ -108,8 +110,8 @@ public class MedecinPanel extends JPanel {
         searchRow.add(searchLabel);
         searchRow.add(searchField);
         searchRow.add(Box.createHorizontalStrut(8));
-        searchRow.add(new JLabel("Grade :"));
-        searchRow.add(gradeFilter);
+        searchRow.add(new JLabel("Filtre :"));
+        searchRow.add(searchType);
         searchRow.add(Box.createHorizontalStrut(8));
         searchRow.add(searchBtn);
         searchRow.add(clearBtn);
@@ -120,10 +122,60 @@ public class MedecinPanel extends JPanel {
         return top;
     }
 
-    private void refresh() {
+    private JPanel createStatCard(String label, JLabel valueLabel, Color accent) {
+        JPanel p = new JPanel(new BorderLayout(8, 4));
+        p.setBackground(UiStyle.CARD_BG);
+        p.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(UiStyle.BORDER, 1),
+            new EmptyBorder(16, 20, 16, 20)
+        ));
+        valueLabel.setFont(valueLabel.getFont().deriveFont(Font.BOLD, 28f));
+        valueLabel.setForeground(accent);
+        JLabel lbl = new JLabel(label);
+        lbl.setForeground(UiStyle.TEXT_SECONDARY);
+        lbl.setFont(lbl.getFont().deriveFont(13f));
+        p.add(valueLabel, BorderLayout.NORTH);
+        p.add(lbl, BorderLayout.SOUTH);
+        return p;
+    }
+
+    private void loadStats() {
+        new SwingWorker<Void, Void>() {
+            long med, vis, grades, actifs;
+            protected Void doInBackground() throws Exception {
+                med    = api.get("/api/medecins/count", Long.class);
+                vis    = api.get("/api/visites/count", Long.class);
+                grades = api.get("/api/medecins/count/distinct-grades", Long.class);
+                actifs = api.get("/api/medecins/count/with-visits", Long.class);
+                return null;
+            }
+            protected void done() {
+                medCount.setText(String.valueOf(med));
+                visCount.setText(String.valueOf(vis));
+                gradesCount.setText(String.valueOf(grades));
+                actifsCount.setText(String.valueOf(actifs));
+            }
+        }.execute();
+    }
+
+    private void refresh() { load("/api/medecins"); }
+
+    private void search() {
+        String q = searchField.getText().trim();
+        if (q.isBlank()) { refresh(); return; }
+        String type = switch (searchType.getSelectedItem().toString()) {
+            case "Nom"    -> "nom";
+            case "Prénom" -> "prenom";
+            case "Grade"  -> "grade";
+            default       -> "tous";
+        };
+        load("/api/medecins/search?type=" + type + "&value=" + api.encode(q));
+    }
+
+    private void load(String path) {
         new SwingWorker<Medecin[], Void>() {
             protected Medecin[] doInBackground() throws Exception {
-                return api.get("/api/medecins", Medecin[].class);
+                return api.get(path, Medecin[].class);
             }
             protected void done() {
                 try {
@@ -132,12 +184,6 @@ public class MedecinPanel extends JPanel {
                 } catch (Exception e) { error(e); }
             }
         }.execute();
-    }
-
-    private void search() {
-        // Filter locally from already loaded data
-        // (backend search endpoint can be added later)
-        refresh();
     }
 
     private void add() {
@@ -150,6 +196,12 @@ public class MedecinPanel extends JPanel {
 
     private void editRow(int row) {
         Medecin o = model.getAt(row);
+        // Confirmation avant modification
+        int opt = JOptionPane.showConfirmDialog(this,
+            "Modifier le médecin « " + o.codeMed() + " — " + o.nom() + " " + o.prenom() + " » ?",
+            "Confirmer la modification", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
+        if (opt != JOptionPane.YES_OPTION) return;
+
         MedecinDialog d = new MedecinDialog(SwingUtilities.getWindowAncestor(this), o);
         d.setVisible(true);
         if (!d.isOk()) return;
@@ -160,8 +212,8 @@ public class MedecinPanel extends JPanel {
     private void deleteRow(int row) {
         Medecin x = model.getAt(row);
         int opt = JOptionPane.showConfirmDialog(this,
-            "Supprimer le médecin « " + x.codeMed() + " — " + x.nom() + " » ?",
-            "Confirmation", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+            "Supprimer le médecin « " + x.codeMed() + " — " + x.nom() + " " + x.prenom() + " » ?\n(Blocage si des visites sont associées)",
+            "Confirmer la suppression", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
         if (opt != JOptionPane.YES_OPTION) return;
         new SwingWorker<Void, Void>() {
             protected Void doInBackground() throws Exception {
@@ -169,19 +221,18 @@ public class MedecinPanel extends JPanel {
                 return null;
             }
             protected void done() {
-                try { get(); refresh(); status.setText(" ✓ Médecin supprimé"); }
+                try { get(); refresh(); loadStats(); status.setText(" ✓ Médecin supprimé"); }
                 catch (Exception e) { error(e); }
             }
         }.execute();
     }
 
     private interface Task { Object run() throws Exception; }
-
     private void run(Task t) {
         new SwingWorker<Object, Void>() {
             protected Object doInBackground() throws Exception { return t.run(); }
             protected void done() {
-                try { get(); refresh(); status.setText(" ✓ Opération réussie"); }
+                try { get(); refresh(); loadStats(); status.setText(" ✓ Opération réussie"); }
                 catch (Exception e) { error(e); }
             }
         }.execute();

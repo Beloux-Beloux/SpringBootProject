@@ -29,4 +29,8 @@ public class PatientController {
     @DeleteMapping("/{id}") public ResponseEntity<Void> delete(@PathVariable String id) {
         service.delete(id); return ResponseEntity.noContent().build();
     }
+
+    // ── Stats ──
+    @GetMapping("/count") public long count() { return service.count(); }
+    @GetMapping("/count/by-sexe") public long countBySexe(@RequestParam String sexe) { return service.countBySexe(sexe); }
 }

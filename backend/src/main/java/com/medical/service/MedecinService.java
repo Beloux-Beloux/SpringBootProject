@@ -21,6 +21,18 @@ public class MedecinService {
                 new ResourceNotFoundException("Médecin introuvable: " + id));
     }
 
+    public List<Medecin> search(String type, String value) {
+        if (value == null || value.isBlank()) return findAll();
+        String v = value.trim();
+        return switch (type.toLowerCase()) {
+            case "tous"    -> repository.searchAllContaining(v);
+            case "nom"     -> repository.findByNomContainingIgnoreCaseOrderByNomAscPrenomAsc(v);
+            case "prenom"  -> repository.findByPrenomContainingIgnoreCaseOrderByNomAscPrenomAsc(v);
+            case "grade"   -> repository.findByGradeContainingIgnoreCaseOrderByNomAscPrenomAsc(v);
+            default        -> throw new BusinessException("Type de recherche invalide: " + type);
+        };
+    }
+
     public Medecin create(MedecinRequest r) {
         if (repository.existsById(r.codeMed()))
             throw new BusinessException("Le code médecin existe déjà: " + r.codeMed());
@@ -43,4 +55,9 @@ public class MedecinService {
             throw new BusinessException("Suppression bloquée: ce médecin possède des visites.");
         repository.deleteById(id);
     }
+
+    // ── Stats ──
+    public long count() { return repository.count(); }
+    public long countDistinctGrades() { return repository.countDistinctGrades(); }
+    public long countMedecinsWithVisits() { return repository.countMedecinsWithVisits(); }
 }

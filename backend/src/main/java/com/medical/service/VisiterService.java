@@ -6,19 +6,19 @@ import com.medical.exception.*;
 import com.medical.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import java.util.List;
 import org.springframework.transaction.annotation.Transactional;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true) 
+@Transactional(readOnly = true)
 public class VisiterService {
     private final VisiterRepository repository;
     private final MedecinRepository medecinRepository;
     private final PatientRepository patientRepository;
 
     public List<VisiterResponse> findAll() {
-        return repository.findAll().stream().map(this::toResponse).toList();
+        return repository.findAllWithJoins().stream().map(this::toResponse).toList();
     }
 
     public VisiterResponse findById(VisiterId id) {
@@ -26,6 +26,22 @@ public class VisiterService {
                 new ResourceNotFoundException("Visite introuvable.")));
     }
 
+    public List<VisiterResponse> search(String type, String value) {
+        if (value == null || value.isBlank()) return findAll();
+        String v = value.trim();
+        List<Visiter> results;
+        switch (type.toLowerCase()) {
+            case "codemedecin" -> results = repository.findByCodeMedContaining(v);
+            case "codepatient" -> results = repository.findByCodePatContaining(v);
+            case "date"        -> results = repository.findByDateContaining(v);
+            case "nommedecin"  -> results = repository.findByMedecinNomContaining(v);
+            case "nompatient"  -> results = repository.findByPatientNomContaining(v);
+            default -> throw new BusinessException("Type de recherche invalide: " + type);
+        }
+        return results.stream().map(this::toResponse).toList();
+    }
+
+    @Transactional
     public VisiterResponse create(VisiterRequest r) {
         VisiterId id = new VisiterId(r.codeMed().trim(), r.codePat().trim(), r.date());
         if (repository.existsById(id)) throw new BusinessException("Cette visite existe déjà.");
@@ -36,6 +52,7 @@ public class VisiterService {
         return toResponse(repository.save(Visiter.builder().id(id).medecin(m).patient(p).build()));
     }
 
+    @Transactional
     public VisiterResponse update(VisiterId oldId, VisiterRequest r) {
         repository.findById(oldId).orElseThrow(() -> new ResourceNotFoundException("Visite introuvable."));
         VisiterId newId = new VisiterId(r.codeMed().trim(), r.codePat().trim(), r.date());
@@ -49,10 +66,15 @@ public class VisiterService {
         return toResponse(repository.save(Visiter.builder().id(newId).medecin(m).patient(p).build()));
     }
 
+    @Transactional
     public void delete(VisiterId id) {
         if (!repository.existsById(id)) throw new ResourceNotFoundException("Visite introuvable.");
         repository.deleteById(id);
     }
+
+    // ── Stats ──
+    public long count() { return repository.count(); }
+    public long countCurrentMonth() { return repository.countCurrentMonth(); }
 
     private VisiterResponse toResponse(Visiter v) {
         return new VisiterResponse(v.getId().getCodeMed(), v.getId().getCodePat(), v.getId().getDate(),
